@@ -10,5 +10,5 @@ services:
     ports:
       - "3306:3306"
     volumes:
-      - $HOME/go/src/JulienOuell/GOAPI/test-db:/test-db
+      - $HOME/go/src/github.com/JulienOuell/GOAPI/test-db:/test-db
     container_name: mysql-db
