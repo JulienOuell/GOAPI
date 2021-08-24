@@ -5,6 +5,7 @@ services:
     build: .
     ports: 
       - "10000:10000"
+    container_name: "go-api"
   mysql:
     image: mysql:8.0
     environment:
