@@ -1,7 +1,11 @@
 version: '3.9'
 
 services:
-
+  goapi:
+    build: .
+    ports: 
+      - "10000:10000"
+    container_name: "go-api"
   mysql:
     image: mysql:8.0
     environment:
