@@ -2,7 +2,7 @@ version: '3.9'
 
 services:
   goapi:
-    build: .
+    build: ./go-src
     ports: 
       - "10000:10000"
     container_name: "go-api"
@@ -14,5 +14,5 @@ services:
     ports:
       - "3306:3306"
     volumes:
-      - $HOME/go/src/github.com/JulienOuell/GOAPI/test-db:/test-db
+      - $HOME/go/src/github.com/JulienOuell/GOAPI/sql-src:/sql-src
     container_name: mysql-db
