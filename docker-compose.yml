@@ -7,7 +7,7 @@ services:
       - "10000:10000"
     container_name: "go-api"
   mysql:
-    image: mysql:8.0
+    build: ./sql-src
     environment:
       MYSQL_ROOT_PASSWORD: root
       MYSQL_DATABASE: test_db
