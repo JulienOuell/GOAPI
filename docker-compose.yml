@@ -7,7 +7,7 @@ services:
       - "10000:10000"
     container_name: "go-api"
   mysql:
-    build: ./sql-src
+    image: mysql:8.0
     environment:
       MYSQL_ROOT_PASSWORD: root
       MYSQL_DATABASE: test_db
@@ -15,4 +15,5 @@ services:
       - "3306:3306"
     volumes:
       - $HOME/go/src/github.com/JulienOuell/GOAPI/sql-src:/sql-src
+      - ./sql-src/test_db.sql:/docker-entrypoint-initdb.d/test_db.sql
     container_name: mysql-db
