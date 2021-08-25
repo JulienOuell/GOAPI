@@ -1,4 +1,4 @@
-FROM golang:1.15.6-alpine
+FROM golang:1.15.6-alpine AS builder
 
 #Create dir for docker
 WORKDIR /app
@@ -11,7 +11,11 @@ COPY go.mod ./
 RUN go mod download
 
 #Create the binary file to run the go project
-RUN go build -o /docker-api-binary
+RUN CGO_ENABLED=0 GOOS=linux go build -a -o /docker-api-binary
+
+#Start from a clean image to just store the binary
+FROM alpine:latest
+COPY --from=builder /docker-api-binary .
 
 #Run go project
-CMD [ "/docker-api-binary" ]
+ENTRYPOINT [ "./docker-api-binary" ]
