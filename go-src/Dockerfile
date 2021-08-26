@@ -6,6 +6,7 @@ WORKDIR /app
 #Bring in all go files in the current dir
 COPY *.go ./
 COPY go.mod ./
+COPY go.sum ./
 
 #Pull gorilla mux from github into the container as a dependency
 RUN go mod download

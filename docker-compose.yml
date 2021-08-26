@@ -1,11 +1,6 @@
 version: '3.9'
 
 services:
-  goapi:
-    build: ./go-src
-    ports: 
-      - "10000:10000"
-    container_name: "go-api"
   mysql:
     image: mysql:8.0
     environment:
@@ -13,7 +8,21 @@ services:
       MYSQL_DATABASE: test_db
     ports:
       - "3306:3306"
+    expose: 
+      - "3306"
     volumes:
       - $HOME/go/src/github.com/JulienOuell/GOAPI/sql-src:/sql-src
-      - ./sql-src/test_db.sql:/docker-entrypoint-initdb.d/test_db.sql
+      - ./sql-src/init_db.sql:/docker-entrypoint-initdb.d/init_db.sql
     container_name: mysql-db
+    networks: 
+      - apinetwork
+  goapi:
+    build: ./go-src
+    ports: 
+      - "10000:10000"
+    container_name: "go-api"
+    networks: 
+      - apinetwork
+networks: 
+  apinetwork:
+    driver: bridge

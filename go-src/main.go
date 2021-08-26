@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"github.com/google/uuid"
+	"database/sql"
 	"github.com/gorilla/mux"
+	_ "github.com/go-sql-driver/mysql"
 )
 
 //The structure for the factsz
@@ -17,11 +18,31 @@ type Fact struct {
 }
 
 var Facts []Fact
+var db *sql.DB
+var err error
 
 //When calling to GET all facts we will encode it in json then return all fatcs to the response
 //GET all request
 func returnAllFacts(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
+
+	var Facts []Fact
+
+	result, err := db.Query("SELECT * FROM Facts")
+	if err != nil {
+	  panic(err.Error())
+	}
+	defer result.Close()
+
+	for result.Next() {
+		var fact Fact
+		err := result.Scan(&fact.ID, &fact.FactType, &fact.Content)
+		if err != nil {
+			panic(err.Error())
+		}
+		Facts = append(Facts, fact)
+	}
+  
 	fmt.Println("Endpoint Hit: returnAllFacts")
 	json.NewEncoder(w).Encode(Facts)
 }
@@ -46,7 +67,7 @@ func createNewFact(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	var fact Fact
 	_ = json.NewDecoder(r.Body).Decode(&fact)
-	fact.ID = uuid.New().String() //Note we generate a UUID for the fact
+	fact.ID = "7" //Note we generate a UUID for the fact
 	Facts = append(Facts, fact)
 	json.NewEncoder(w).Encode(fact)
 }
@@ -106,6 +127,12 @@ func handleRequest() {
 }
 
 func main() {
+	//Connect to the mysql db
+	db, err = sql.Open("mysql", "root:root@tcp(mysql:3306)/test_db")
+	if err != nil {
+		panic(err.Error())
+	}
+	defer db.Close()
 	Facts = []Fact{
 		{ID: "1", FactType: "Random", Content: "This is random fact"},
 		{ID: "2", FactType: "Random", Content: "This is random fact2"},
