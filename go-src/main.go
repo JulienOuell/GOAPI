@@ -17,7 +17,6 @@ type Fact struct {
 	Content  string `json:"content"`
 }
 
-var Facts []Fact
 var db *sql.DB
 var err error
 
@@ -26,7 +25,7 @@ var err error
 func returnAllFacts(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	var Facts []Fact
+	var facts []Fact
 
 	result, err := db.Query("SELECT * FROM Facts")
 	if err != nil {
@@ -40,11 +39,11 @@ func returnAllFacts(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			panic(err.Error())
 		}
-		Facts = append(Facts, fact)
+		facts = append(facts, fact)
 	}
   
 	fmt.Println("Endpoint Hit: returnAllFacts")
-	json.NewEncoder(w).Encode(Facts)
+	json.NewEncoder(w).Encode(facts)
 }
 
 //Gives specific fact based off ID given in URL
@@ -54,21 +53,49 @@ func returnSingleFact(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	key := vars["id"]
 
-	for _, fact := range Facts {
-		if fact.ID == key {
-			json.NewEncoder(w).Encode(fact)
+	result, err := db.Query("SELECT * FROM Facts WHERE id = ?", key)
+	if err != nil {
+	  panic(err.Error())
+	}
+	defer result.Close()
+
+	var fact Fact
+	for result.Next() {
+		err = result.Scan(&fact.ID, &fact.FactType, &fact.Content)
+		if err != nil {
+			panic(err.Error())
 		}
 	}
+	json.NewEncoder(w).Encode(fact)
 }
 
 //Will be used to let the user create a new fact for the DB
 //POST request
 func createNewFact(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
+	  
 	var fact Fact
-	_ = json.NewDecoder(r.Body).Decode(&fact)
-	fact.ID = "7" //Note we generate a UUID for the fact
-	Facts = append(Facts, fact)
+	var stmt *sql.Stmt
+	json.NewDecoder(r.Body).Decode(&fact)
+	if fact.ID == "" {
+		stmt, err = db.Prepare("INSERT INTO Facts(FactType, Content) VALUES(?, ?)")
+	} else {
+		stmt, err = db.Prepare("INSERT INTO Facts(ID, FactType, Content) VALUES(?, ?, ?)")
+	}
+	if err != nil {
+    	panic(err.Error())
+  	}
+
+	if fact.ID == "" {
+		_, err = stmt.Exec(fact.FactType, fact.Content)
+	} else {
+		_, err = stmt.Exec(fact.ID, fact.FactType, fact.Content)
+	}
+	if err != nil {
+    	panic(err.Error())
+  	}
+	
+	w.WriteHeader(http.StatusCreated) // 201 to client
 	json.NewEncoder(w).Encode(fact)
 }
 
@@ -79,18 +106,23 @@ func updateFact(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	key := vars["id"]
 
-	for index, fact := range Facts {
-		fmt.Printf("%v", key)
-		if fact.ID == key {
-			Facts = append(Facts[:index], Facts[index+1:]...)
-			var fact Fact
-			_ = json.NewDecoder(r.Body).Decode(&fact)
-			fact.ID = key //Keep same ID
-			Facts = append(Facts, fact)
-			json.NewEncoder(w).Encode(fact)
-			break
-		}
-	}
+	var fact Fact
+	var stmt *sql.Stmt
+	json.NewDecoder(r.Body).Decode(&fact)
+
+	stmt, err = db.Prepare("UPDATE Facts SET FactType = ?, Content = ? WHERE id = ?")
+	if err != nil {
+    	panic(err.Error())
+  	}
+	
+	fact.ID = key
+	_, err = stmt.Exec(fact.FactType, fact.Content, fact.ID)
+	if err != nil {
+    	panic(err.Error())
+  	}
+
+	w.WriteHeader(http.StatusAccepted)
+	json.NewEncoder(w).Encode(fact)
 }
 
 //Will be used to let the user delete a fact from the DB
@@ -100,12 +132,17 @@ func deleteFact(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	key := vars["id"]
 
-	for index, fact := range Facts {
-		if fact.ID == key {
-			Facts = append(Facts[:index], Facts[index+1:]...)
-		}
+	stmt, err := db.Prepare("DELETE FROM Facts WHERE id = ?")
+	if err != nil {
+		panic(err.Error())
 	}
-	json.NewEncoder(w).Encode(Facts)
+
+	_, err = stmt.Exec(key)
+	if err != nil {
+		panic(err.Error())
+	}
+
+	w.WriteHeader(http.StatusNoContent) //204 to the client
 }
 
 //Gives a http response based on given http request
@@ -133,9 +170,5 @@ func main() {
 		panic(err.Error())
 	}
 	defer db.Close()
-	Facts = []Fact{
-		{ID: "1", FactType: "Random", Content: "This is random fact"},
-		{ID: "2", FactType: "Random", Content: "This is random fact2"},
-	}
 	handleRequest()
 }
