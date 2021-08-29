@@ -20,6 +20,17 @@ type Fact struct {
 var db *sql.DB
 var err error
 
+func flushResponseWriter(w http.ResponseWriter, httpError int) {
+	if httpError == 0 {
+		w.WriteHeader(http.StatusInternalServerError)
+	} else if httpError == 1 {
+		w.WriteHeader(http.StatusBadRequest)
+	}
+	if f, ok := w.(http.Flusher); ok {
+		f.Flush()
+	}
+}
+
 //When calling to GET all facts we will encode it in json then return all fatcs to the response
 //GET all request
 func returnAllFacts(w http.ResponseWriter, r *http.Request) {
@@ -29,7 +40,8 @@ func returnAllFacts(w http.ResponseWriter, r *http.Request) {
 
 	result, err := db.Query("SELECT * FROM Facts")
 	if err != nil {
-	  panic(err.Error())
+		flushResponseWriter(w, 0)
+		panic(err.Error())
 	}
 	defer result.Close()
 
@@ -37,12 +49,13 @@ func returnAllFacts(w http.ResponseWriter, r *http.Request) {
 		var fact Fact
 		err := result.Scan(&fact.ID, &fact.FactType, &fact.Content)
 		if err != nil {
+			flushResponseWriter(w, 0)
 			panic(err.Error())
 		}
 		facts = append(facts, fact)
 	}
-  
-	fmt.Println("Endpoint Hit: returnAllFacts")
+
+	w.WriteHeader(http.StatusOK) //200 to client
 	json.NewEncoder(w).Encode(facts)
 }
 
@@ -52,10 +65,31 @@ func returnSingleFact(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	vars := mux.Vars(r)
 	key := vars["id"]
+	var fact Fact
 
-	result, err := db.Query("SELECT * FROM Facts WHERE id = ?", key)
+	result := db.QueryRow("SELECT * FROM Facts WHERE id = ?", key)
+	err = result.Scan(&fact.ID, &fact.FactType, &fact.Content)
+	if err == sql.ErrNoRows {
+		flushResponseWriter(w, 1)
+		panic(err.Error())
+	} else if err != nil {
+		flushResponseWriter(w, 0)
+		panic(err.Error())
+	}
+
+	w.WriteHeader(http.StatusOK) // 200 to client
+	json.NewEncoder(w).Encode(fact)
+}
+
+//Gives a random fact from the DB
+//GET random fact request
+func returnRandomFact(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	result, err := db.Query("SELECT * FROM Facts ORDER BY RAND() LIMIT 1")
 	if err != nil {
-	  panic(err.Error())
+		flushResponseWriter(w, 0)
+	  	panic(err.Error())
 	}
 	defer result.Close()
 
@@ -63,9 +97,12 @@ func returnSingleFact(w http.ResponseWriter, r *http.Request) {
 	for result.Next() {
 		err = result.Scan(&fact.ID, &fact.FactType, &fact.Content)
 		if err != nil {
+			flushResponseWriter(w, 0)
 			panic(err.Error())
 		}
 	}
+
+	w.WriteHeader(http.StatusOK) // 200 to client
 	json.NewEncoder(w).Encode(fact)
 }
 
@@ -83,6 +120,7 @@ func createNewFact(w http.ResponseWriter, r *http.Request) {
 		stmt, err = db.Prepare("INSERT INTO Facts(ID, FactType, Content) VALUES(?, ?, ?)")
 	}
 	if err != nil {
+		flushResponseWriter(w, 0)
     	panic(err.Error())
   	}
 
@@ -92,6 +130,7 @@ func createNewFact(w http.ResponseWriter, r *http.Request) {
 		_, err = stmt.Exec(fact.ID, fact.FactType, fact.Content)
 	}
 	if err != nil {
+		flushResponseWriter(w, 1)
     	panic(err.Error())
   	}
 	
@@ -112,16 +151,18 @@ func updateFact(w http.ResponseWriter, r *http.Request) {
 
 	stmt, err = db.Prepare("UPDATE Facts SET FactType = ?, Content = ? WHERE id = ?")
 	if err != nil {
+		flushResponseWriter(w, 0)
     	panic(err.Error())
   	}
 	
 	fact.ID = key
 	_, err = stmt.Exec(fact.FactType, fact.Content, fact.ID)
 	if err != nil {
+		flushResponseWriter(w, 0)
     	panic(err.Error())
   	}
 
-	w.WriteHeader(http.StatusAccepted)
+	w.WriteHeader(http.StatusOK) // 200 to client
 	json.NewEncoder(w).Encode(fact)
 }
 
@@ -134,11 +175,13 @@ func deleteFact(w http.ResponseWriter, r *http.Request) {
 
 	stmt, err := db.Prepare("DELETE FROM Facts WHERE id = ?")
 	if err != nil {
+		flushResponseWriter(w, 0)
 		panic(err.Error())
 	}
 
 	_, err = stmt.Exec(key)
 	if err != nil {
+		flushResponseWriter(w, 0)
 		panic(err.Error())
 	}
 
@@ -148,7 +191,6 @@ func deleteFact(w http.ResponseWriter, r *http.Request) {
 //Gives a http response based on given http request
 func homePage(response http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(response, "Welcome to the RESTAPI!")
-	fmt.Println("Endpoint Hit: homePage")
 }
 
 //Will match URL path (just localhost in this case) and provide a http response from homePage func
@@ -157,6 +199,7 @@ func handleRequest() {
 	myRouter.HandleFunc("/", homePage)
 	myRouter.HandleFunc("/all", returnAllFacts).Methods("GET")
 	myRouter.HandleFunc("/fact/{id}", returnSingleFact).Methods("GET")
+	myRouter.HandleFunc("/random", returnRandomFact).Methods("GET")
 	myRouter.HandleFunc("/fact", createNewFact).Methods("POST")
 	myRouter.HandleFunc("/fact/{id}", updateFact).Methods("PUT")
 	myRouter.HandleFunc("/fact/{id}", deleteFact).Methods("DELETE")
