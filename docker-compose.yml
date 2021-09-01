@@ -14,15 +14,8 @@ services:
       - $HOME/go/src/github.com/JulienOuell/GOAPI/sql-src:/sql-src
       - ./sql-src/init_db.sql:/docker-entrypoint-initdb.d/init_db.sql
     container_name: mysql-db
-    networks: 
-      - apinetwork
   goapi:
     build: ./go-src
     ports: 
       - "10000:10000"
     container_name: "go-api"
-    networks: 
-      - apinetwork
-networks: 
-  apinetwork:
-    driver: bridge

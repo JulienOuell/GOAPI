@@ -10,7 +10,7 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
-//The structure for the factsz
+//The structure for the facts
 type Fact struct {
 	ID       string `json:"ID"`
 	FactType string `json:"factType"`
@@ -24,7 +24,7 @@ func flushResponseWriter(w http.ResponseWriter, httpError int) {
 	if httpError == 0 {
 		w.WriteHeader(http.StatusInternalServerError)
 	} else if httpError == 1 {
-		w.WriteHeader(http.StatusBadRequest)
+		w.WriteHeader(http.StatusNotFound)
 	}
 	if f, ok := w.(http.Flusher); ok {
 		f.Flush()

@@ -12,11 +12,11 @@ COPY go.sum ./
 RUN go mod download
 
 #Create the binary file to run the go project
-RUN CGO_ENABLED=0 GOOS=linux go build -a -o /docker-api-binary
+RUN CGO_ENABLED=0 GOOS=linux go build -a -o /facts-api
 
 #Start from a clean image to just store the binary
 FROM alpine:latest
-COPY --from=builder /docker-api-binary .
+COPY --from=builder /facts-api .
 
 #Run go project
-ENTRYPOINT [ "./docker-api-binary" ]
+ENTRYPOINT [ "./facts-api" ]
