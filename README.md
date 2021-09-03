@@ -32,6 +32,8 @@ If not given an ID, when using POST, an ID will automatically be given to the fa
 
 Docker is required to run this program, which can be downloaded at: https://docs.docker.com/get-docker/
 
+*Note, the DB given has 10 preloaded facts already contained*
+
 To run the program execute the following command:
 
 > `docker-compose up -d`
