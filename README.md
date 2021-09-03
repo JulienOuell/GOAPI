@@ -40,7 +40,7 @@ To run the program execute the following command:
 
 GET:
 
-There are 3 GET requests,
+There are 3 GET endpoints,
 
 > `curl -X GET http://localhost:10000/all`
 
